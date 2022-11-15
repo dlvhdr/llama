@@ -385,7 +385,7 @@ start:
 					m.c = i
 					m.r = j
 				}
-				if m.files[n].IsDir() {
+				if m.files[n].IsDir() && m.files[n].Name() != ".." {
 					// Dirs should have a slash at the end.
 					name += "/"
 				}
@@ -475,6 +475,11 @@ func (m *model) list() {
 
 	// ReadDir already returns files and dirs sorted by filename.
 	m.files, err = os.ReadDir(m.path)
+
+	// Add .. to the top of the list.
+	if m.path != "/" {
+		m.files = append([]os.DirEntry{parentDir{}}, m.files...)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -626,4 +631,23 @@ func usage() {
 	_ = w.Flush()
 	fmt.Print("\n")
 	os.Exit(1)
+}
+
+type parentDir struct {
+}
+
+func (p parentDir) Name() string {
+	return ".."
+}
+
+func (p parentDir) IsDir() bool {
+	return true
+}
+
+func (p parentDir) Type() fs.FileMode {
+	return fs.ModeDir
+}
+
+func (p parentDir) Info() (fs.FileInfo, error) {
+	panic("not implemented")
 }
