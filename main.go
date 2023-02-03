@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	. "strings"
 	"text/tabwriter"
 	"time"
@@ -70,6 +71,7 @@ func main() {
 	}
 
 	showIcons := false
+	groupDirsFirst := false
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i] == "--help" || os.Args[1] == "-h" {
 			usage()
@@ -84,6 +86,11 @@ func main() {
 			continue
 		}
 
+		if os.Args[i] == "--group-directories-first" {
+			groupDirsFirst = true
+			continue
+		}
+
 		startPath, err = filepath.Abs(os.Args[1])
 		if err != nil {
 			panic(err)
@@ -94,11 +101,12 @@ func main() {
 	lipgloss.SetColorProfile(output.ColorProfile())
 
 	m := &model{
-		path:      startPath,
-		width:     80,
-		height:    60,
-		positions: make(map[string]position),
-		showIcons: showIcons,
+		path:           startPath,
+		width:          80,
+		height:         60,
+		positions:      make(map[string]position),
+		showIcons:      showIcons,
+		groupDirsFirst: groupDirsFirst,
 	}
 	m.list()
 
@@ -129,6 +137,7 @@ type model struct {
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
 	showIcons         bool                // Whether to show icons or not
+	groupDirsFirst    bool                // Whether to list directories before other files
 }
 
 type position struct {
@@ -654,6 +663,20 @@ func (m *model) list() {
 		panic(err)
 	}
 
+	if m.groupDirsFirst {
+		sort.SliceStable(files, func(i, j int) bool {
+			if files[i].IsDir() && files[j].IsDir() {
+				return i < j
+			}
+
+			if files[i].IsDir() {
+				return true
+			}
+
+			return false
+		})
+	}
+
 files:
 	for _, file := range files {
 		for _, toDelete := range m.toBeDeleted {
@@ -823,6 +846,7 @@ func usage() {
 	put("    dd\tDelete file or dir")
 	put("\n  Flags:\n")
 	put("    --icons\tdisplay icons")
+	put("    --group-directories-first\tlist directories before other files")
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
